@@ -4,7 +4,6 @@ import json
 
 from openai import OpenAI
 from openai.types.responses import (
-    EasyInputMessageParam,
     Response,
     ResponseFunctionToolCall,
     ResponseInputParam,
@@ -29,11 +28,8 @@ def run_tool(name: str, arguments: str) -> str:
     return json.dumps(result)
 
 
-def run_agent(client: OpenAI, user_input: str) -> str:
+def run_agent(client: OpenAI, input_items: ResponseInputParam) -> str:
     """Run the agent loop until the model gives a final text answer."""
-    input_items: ResponseInputParam = [
-        EasyInputMessageParam(role="user", content=user_input)
-    ]
 
     for _ in range(MAX_STEPS):
         response: Response = client.responses.create(
@@ -43,7 +39,9 @@ def run_agent(client: OpenAI, user_input: str) -> str:
         )
 
         # Keep the model's output (including tool requests) in the history.
-        input_items += response.output
+        # The SDK types input and output separately, but the API accepts output
+        # items as input, so the checker's complaint here is a false alarm.
+        input_items += response.output  # type: ignore
 
         tool_calls: list[ResponseFunctionToolCall] = [
             item for item in response.output if item.type == "function_call"
